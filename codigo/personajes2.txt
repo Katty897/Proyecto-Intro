@@ -1,0 +1,19 @@
+# Archivo de personajes del juego Epic Adventure
+# Formato: NOMBRE,PELICULA,ROL,VIDA,ATAQUE,DEFENSA,EMOJI
+# Personajes: Princesas y mujeres de Disney
+# Vida reducida y Ataque aumentado para batallas más rápidas
+MULAN,Mulan,Ataque,55,28,8,🌸
+MOANA,Moana,Balanceado,60,22,12,🌊
+ELSA,Frozen,Ataque,50,32,7,❄️
+RAPUNZEL,Enredados,Balanceado,62,20,13,👑
+MERIDA,Valiente,Ataque,52,30,9,🏹
+POCAHONTAS,Pocahontas,Balanceado,60,20,14,🍃
+CENICIENTA,La Cenicienta,Defensa,75,14,18,👠
+BELLA,La Bella y la Bestia,Balanceado,58,22,10,🌹
+ARIEL,La Sirenita,Ataque,50,31,6,🐠
+TIANA,Princesa y el Sapo,Balanceado,62,21,12,🐸
+AURORA,La Bella Durmiente,Defensa,70,15,17,🌷
+JASMINE,Aladdin,Ataque,53,29,8,✨
+MIRABEL,Encanto,Balanceado,60,20,15,🦋
+RAYA,Raya y el Ultimo Dragon,Ataque,55,33,6,🐉
+VAIANA,Vaiana,Balanceado,58,21,11,🐚
