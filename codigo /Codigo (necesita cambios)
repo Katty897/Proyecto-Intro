@@ -1,0 +1,799 @@
+"""
+========================================================
+  EPIC ADVENTURE - Imaginary Battle
+  Proyecto 1 - Introducción a la Programación
+  TEC Costa Rica - I Semestre 2026
+  Tema: Princesas de Disney
+========================================================
+"""
+
+import tkinter as tk
+from tkinter import messagebox
+import random
+
+# ============================================================
+# SECCIÓN 1: CARGA DE PERSONAJES DESDE ARCHIVO
+# ============================================================
+def cargar_personajes(ruta="personajes.txt"):
+    """
+    Carga los personajes desde el archivo de texto.
+    Usa recursividad para procesar cada línea.
+    """
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            lineas = [l.strip() for l in f.readlines()
+                      if l.strip() and not l.startswith("#")]
+    except FileNotFoundError:
+        lineas = [
+            "MULAN,Mulan,Ataque,55,28,8,\U0001f338",
+            "MOANA,Moana,Balanceado,60,22,12,\U0001f30a",
+            "ELSA,Frozen,Ataque,50,32,7,\u2744\ufe0f",
+            "RAPUNZEL,Enredados,Balanceado,62,20,13,\U0001f451",
+            "MERIDA,Valiente,Ataque,52,30,9,\U0001f3f9",
+            "POCAHONTAS,Pocahontas,Balanceado,60,20,14,\U0001f343",
+            "CENICIENTA,La Cenicienta,Defensa,75,14,18,\U0001f460",
+            "BELLA,La Bella y la Bestia,Balanceado,58,22,10,\U0001f339",
+            "ARIEL,La Sirenita,Ataque,50,31,6,\U0001f420",
+            "TIANA,Princesa y el Sapo,Balanceado,62,21,12,\U0001f438",
+            "AURORA,La Bella Durmiente,Defensa,70,15,17,\U0001f337",
+            "JASMINE,Aladdin,Ataque,53,29,8,\u2728",
+            "MIRABEL,Encanto,Balanceado,60,20,15,\U0001f98b",
+            "RAYA,Raya y el Ultimo Dragon,Ataque,55,33,6,\U0001f409",
+            "VAIANA,Vaiana,Balanceado,58,21,11,\U0001f41a",
+        ]
+
+    def leer_lineas(lista, index=0, resultado=None):
+        """
+        Recursiva: procesa cada línea del archivo.
+        Caso base: índice al final → retorna resultado.
+        Caso recursivo: parsea línea actual y avanza.
+        """
+        if resultado is None:
+            resultado = []
+        # Caso base
+        if index >= len(lista):
+            return resultado
+        partes = lista[index].split(",")
+        if len(partes) >= 7:
+            p = {
+                "nombre":   partes[0],
+                "pelicula": partes[1],
+                "rol":      partes[2],
+                "vida_max": int(partes[3]),
+                "vida":     int(partes[3]),
+                "ataque":   int(partes[4]),
+                "defensa":  int(partes[5]),
+                "emoji":    partes[6],
+                "ko":       False,
+            }
+            resultado.append(p)
+        # Caso recursivo
+        return leer_lineas(lista, index + 1, resultado)
+
+    return leer_lineas(lineas)
+
+
+# ============================================================
+# SECCIÓN 2: LÓGICA DE COMBATE (con recursividad)
+# ============================================================
+
+def calcular_danio(atk, def_):
+    """
+    Daño = ATK atacante - DEF defensor.
+    Mínimo siempre 1.
+    """
+    return max(atk - def_, 1)
+
+
+def obtener_personajes_vivos(lista, index=0, resultado=None):
+    """
+    Recursiva: filtra personajes que NO están en KO.
+    Caso base: llegó al final → retorna lista de vivos.
+    Caso recursivo: agrega si vivo, avanza.
+    """
+    if resultado is None:
+        resultado = []
+    if index >= len(lista):
+        return resultado
+    if not lista[index]["ko"]:
+        resultado.append(lista[index])
+    return obtener_personajes_vivos(lista, index + 1, resultado)
+
+
+def todos_ko(lista, index=0):
+    """
+    Recursiva: verifica si TODOS están en KO.
+    Caso base: llegó al final sin encontrar vivo → True.
+    Caso recursivo: si encuentra uno vivo → False.
+    """
+    if index >= len(lista):
+        return True
+    if not lista[index]["ko"]:
+        return False
+    return todos_ko(lista, index + 1)
+
+
+def siguiente_vivo(lista, index=0):
+    """
+    Recursiva: retorna el primer personaje vivo.
+    Caso base: llegó al final → None (no hay vivos).
+    Caso recursivo: si vivo retórnalo, si no avanza.
+    """
+    if index >= len(lista):
+        return None
+    if not lista[index]["ko"]:
+        return lista[index]
+    return siguiente_vivo(lista, index + 1)
+
+
+def obtener_seleccionados(vars_lista, personajes, index=0, resultado=None):
+    """
+    Recursiva: retorna personajes cuyo BooleanVar está marcado.
+    Caso base: llegó al final → retorna seleccionados.
+    Caso recursivo: si marcado lo agrega, avanza.
+    """
+    if resultado is None:
+        resultado = []
+    if index >= len(vars_lista):
+        return resultado
+    if vars_lista[index].get():
+        resultado.append(personajes[index])
+    return obtener_seleccionados(vars_lista, personajes, index + 1, resultado)
+
+
+def restaurar_vida(p):
+    """Restaura vida al máximo cuando un personaje es capturado."""
+    p["vida"] = p["vida_max"]
+    p["ko"]   = False
+    return p
+
+
+def copiar_personaje(p):
+    """Crea una copia del diccionario de un personaje."""
+    return {k: v for k, v in p.items()}
+
+
+# ============================================================
+# SECCIÓN 3: PALETA DE COLORES (tema pastel Disney)
+# ============================================================
+#
+#  Fondo principal  : blanco roto suave
+#  Superficies      : rosa muy claro
+#  Acento primario  : rosa medio
+#  Acento secundario: verde menta
+#  Texto principal  : gris oscuro cálido
+#  Texto suave      : gris medio
+#  Barras de vida   : verde, amarillo o rojo según HP
+#
+C_FONDO    = "#FFF5F8"   # blanco rosado
+C_PANEL    = "#FFE8EF"   # rosa claro
+C_PANEL2   = "#F0FAF4"   # verde muy claro
+C_ACENTO   = "#E8619A"   # rosa fuerte
+C_VERDE    = "#5EBF8A"   # verde menta
+C_AMARILLO = "#F5A623"   # ámbar para advertencias
+C_TEXTO    = "#4A3040"   # ciruela oscuro para texto
+C_SUAVE    = "#9B7B8A"   # rosa grisáceo para textos secundarios
+C_BLANCO   = "#FFFFFF"
+C_BORDE    = "#F2C4D4"   # borde rosa suave
+
+F_TITULO  = ("Georgia", 20, "bold")
+F_GRANDE  = ("Georgia", 13, "bold")
+F_NORMAL  = ("Helvetica", 11)
+F_CHICA   = ("Helvetica", 9)
+F_EMOJI   = ("Helvetica", 36)
+
+
+# ============================================================
+# SECCIÓN 4: CLASE PRINCIPAL DEL JUEGO
+# ============================================================
+
+class EpicAdventureApp:
+    """
+    Maneja toda la interfaz Tkinter y el estado del juego.
+    Las pantallas se intercambian limpiando el contenedor central.
+    """
+
+    AVATARES = ["🌺", "🦄", "🌙"]
+
+    HUECOS = [
+        {"nombre": "Hueca de Radiator Springs", "emoji": "🌵", "tierra": "Radiator Springs"},
+        {"nombre": "Hueca de Pride Rock",        "emoji": "🌅", "tierra": "Pride Rock"},
+        {"nombre": "Hueca de Monstropolis",      "emoji": "👁️",  "tierra": "Monstropolis"},
+        {"nombre": "Hueca de Arendelle",         "emoji": "🌨️",  "tierra": "Arendelle"},
+        {"nombre": "Hueca de Neverland",         "emoji": "⭐",  "tierra": "Neverland"},
+    ]
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Epic Adventure ✨ Imaginary Battle")
+        self.root.geometry("820x620")
+        self.root.configure(bg=C_FONDO)
+        self.root.resizable(False, False)
+
+        self.todos_personajes  = cargar_personajes()
+        self.nombre_jugador    = ""
+        self.avatar_jugador    = self.AVATARES[0]
+        self.equipo_jugador    = []
+        self.puntaje_jugador   = 0
+        self.hueco_actual      = None
+        self.equipo_hueco      = []
+        self.puntaje_hueco     = 0
+        self.hueco_index       = 0
+        self.huecos_derrotados = []
+        self.personaje_jugador_activo = None
+        self.personaje_hueco_activo   = None
+
+        self.contenedor = tk.Frame(self.root, bg=C_FONDO)
+        self.contenedor.pack(fill="both", expand=True)
+
+        self.mostrar_pantalla_inicio()
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.1: HELPERS DE UI
+    # --------------------------------------------------------
+
+    def limpiar(self):
+        for w in self.contenedor.winfo_children():
+            w.destroy()
+
+    def titulo(self, parent, texto, color=None, fuente=None, pady=4):
+        tk.Label(parent, text=texto,
+                 font=fuente or F_TITULO,
+                 fg=color or C_ACENTO,
+                 bg=parent.cget("bg")).pack(pady=pady)
+
+    def label(self, parent, texto, color=None, fuente=None, bg=None, anchor="center", pady=2):
+        tk.Label(parent, text=texto,
+                 font=fuente or F_NORMAL,
+                 fg=color or C_TEXTO,
+                 bg=bg or parent.cget("bg"),
+                 anchor=anchor).pack(pady=pady, anchor=anchor if anchor != "center" else None)
+
+    def btn(self, parent, texto, cmd, bg=None, fg="white", width=22, pady=5, side=None):
+        b = tk.Button(parent, text=texto, command=cmd,
+                      font=F_NORMAL, bg=bg or C_ACENTO, fg=fg,
+                      activebackground=C_VERDE, activeforeground="white",
+                      relief="flat", bd=0, padx=12, pady=7,
+                      width=width, cursor="hand2",
+                      highlightthickness=0)
+        if side:
+            b.pack(side=side, padx=6, pady=pady)
+        else:
+            b.pack(pady=pady)
+        return b
+
+    def barra_vida(self, parent, hp, hp_max, ancho=220):
+        """Dibuja una barra de vida coloreada según el porcentaje restante."""
+        c = tk.Canvas(parent, width=ancho, height=18,
+                      bg=C_PANEL, highlightthickness=1,
+                      highlightbackground=C_BORDE)
+        c.pack(pady=3)
+        pct = max(hp, 0) / hp_max
+        color = (C_VERDE if pct > 0.5 else C_AMARILLO if pct > 0.25 else C_ACENTO)
+        c.create_rectangle(2, 2, ancho - 2, 16, fill="#F5D0DA", outline="")
+        c.create_rectangle(2, 2, int((ancho - 2) * pct), 16, fill=color, outline="")
+        c.create_text(ancho // 2, 9,
+                      text=f"{max(hp,0)}/{hp_max}",
+                      fill=C_TEXTO, font=("Helvetica", 8, "bold"))
+        return c
+
+    def separador(self, parent, pady=6):
+        tk.Frame(parent, bg=C_BORDE, height=1).pack(fill="x", pady=pady)
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.2: PANTALLA INICIO
+    # --------------------------------------------------------
+
+    def mostrar_pantalla_inicio(self):
+        self.limpiar()
+
+        # Cabecera decorativa
+        cab = tk.Frame(self.contenedor, bg=C_ACENTO, pady=14)
+        cab.pack(fill="x")
+        tk.Label(cab, text="✨  EPIC ADVENTURE  ✨",
+                 font=("Georgia", 22, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack()
+        tk.Label(cab, text="Imaginary Battle  •  Disney Princesses Edition",
+                 font=("Helvetica", 10), fg="#FFD6E7",
+                 bg=C_ACENTO).pack()
+
+        # Panel principal con scroll interno usando un frame scrollable simple
+        outer = tk.Frame(self.contenedor, bg=C_FONDO)
+        outer.pack(fill="both", expand=True, padx=30, pady=10)
+
+        # Columna izquierda: nombre y avatar
+        col_izq = tk.Frame(outer, bg=C_PANEL, padx=18, pady=14,
+                           relief="flat", bd=0,
+                           highlightthickness=1,
+                           highlightbackground=C_BORDE)
+        col_izq.pack(side="left", fill="y", padx=(0, 8))
+
+        tk.Label(col_izq, text="Tu nombre:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_PANEL).pack(anchor="w")
+        self.entry_nombre = tk.Entry(col_izq, font=F_NORMAL,
+                                     bg=C_BLANCO, fg=C_TEXTO,
+                                     insertbackground=C_ACENTO,
+                                     relief="flat",
+                                     highlightthickness=1,
+                                     highlightbackground=C_BORDE,
+                                     width=20)
+        self.entry_nombre.pack(pady=(3, 12), anchor="w", ipady=4)
+
+        tk.Label(col_izq, text="Tu avatar:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_PANEL).pack(anchor="w")
+        self.avatar_var = tk.StringVar(value=self.AVATARES[0])
+        fav = tk.Frame(col_izq, bg=C_PANEL)
+        fav.pack(anchor="w", pady=(3, 12))
+        for av in self.AVATARES:
+            tk.Radiobutton(fav, text=av, variable=self.avatar_var, value=av,
+                           font=("Helvetica", 22), bg=C_PANEL,
+                           fg=C_TEXTO, selectcolor=C_BLANCO,
+                           activebackground=C_PANEL).pack(side="left", padx=5)
+
+        self.separador(col_izq)
+
+        tk.Label(col_izq, text="ℹ Tip de juego:",
+                 font=("Helvetica", 9, "bold"), fg=C_ACENTO,
+                 bg=C_PANEL).pack(anchor="w")
+        tk.Label(col_izq,
+                 text="Personajes de Ataque hacen\nmucho daño pero tienen\nmenos vida.\nPersonajes de Defensa\naguantan más golpes.",
+                 font=("Helvetica", 9), fg=C_SUAVE,
+                 bg=C_PANEL, justify="left").pack(anchor="w", pady=4)
+
+        self.separador(col_izq)
+        self.btn(col_izq, "▶  INICIAR JUEGO", self.iniciar_juego, width=18, pady=8)
+        self.btn(col_izq, "ℹ  ABOUT", self.mostrar_about,
+                 bg=C_VERDE, width=18, pady=2)
+
+        # Columna derecha: selección de personajes
+        col_der = tk.Frame(outer, bg=C_PANEL2, padx=14, pady=14,
+                           highlightthickness=1,
+                           highlightbackground="#B8E8CC")
+        col_der.pack(side="left", fill="both", expand=True)
+
+        tk.Label(col_der, text="Elige exactamente 3 princesas:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_PANEL2).pack(anchor="w", pady=(0, 6))
+
+        self.vars_personajes = []
+        grid = tk.Frame(col_der, bg=C_PANEL2)
+        grid.pack(fill="both", expand=True)
+        cols = 2
+        for i, p in enumerate(self.todos_personajes):
+            var = tk.BooleanVar()
+            self.vars_personajes.append(var)
+            texto = (f"{p['emoji']} {p['nombre']}\n"
+                     f"   ❤ {p['vida_max']}  ⚔ {p['ataque']}  🛡 {p['defensa']}")
+            r, c = divmod(i, cols)
+            cb = tk.Checkbutton(grid, text=texto, variable=var,
+                                font=("Helvetica", 8), bg=C_PANEL2,
+                                fg=C_TEXTO, selectcolor=C_BLANCO,
+                                activebackground=C_PANEL2,
+                                anchor="w", justify="left",
+                                wraplength=160)
+            cb.grid(row=r, column=c, sticky="w", padx=5, pady=2)
+
+    def mostrar_about(self):
+        v = tk.Toplevel(self.root)
+        v.title("Acerca del Proyecto")
+        v.configure(bg=C_FONDO)
+        v.geometry("380x280")
+        v.resizable(False, False)
+        cab = tk.Frame(v, bg=C_ACENTO, pady=10)
+        cab.pack(fill="x")
+        tk.Label(cab, text="✨ Epic Adventure",
+                 font=("Georgia", 16, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack()
+        info = ("Proyecto 1  •  I Semestre 2026\n\n"
+                "Tecnológico de Costa Rica\n"
+                "Escuela de Ing. en Computadores\n\n"
+                "Introducción a la Programación\n\n"
+                "Prof. Santiago Ramirez\n"
+                "Prof. Ellioth Ramirez\n\n"
+                "Desarrollado con Python + Tkinter")
+        tk.Label(v, text=info, font=("Helvetica", 10),
+                 fg=C_TEXTO, bg=C_FONDO, justify="center").pack(pady=14)
+        self.btn(v, "Cerrar", v.destroy, width=10)
+
+    def iniciar_juego(self):
+        nombre = self.entry_nombre.get().strip()
+        if not nombre:
+            messagebox.showerror("¡Espera!", "Ingresa tu nombre para continuar.")
+            return
+        seleccionados = obtener_seleccionados(self.vars_personajes, self.todos_personajes)
+        if len(seleccionados) != 3:
+            messagebox.showerror("¡Espera!",
+                                 f"Debes elegir exactamente 3 princesas.\n"
+                                 f"(Seleccionadas: {len(seleccionados)})")
+            return
+        self.nombre_jugador    = nombre
+        self.avatar_jugador    = self.avatar_var.get()
+        self.equipo_jugador    = [copiar_personaje(p) for p in seleccionados]
+        self.puntaje_jugador   = 0
+        self.hueco_index       = 0
+        self.huecos_derrotados = []
+        self.mostrar_mapa()
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.3: PANTALLA MAPA
+    # --------------------------------------------------------
+
+    def mostrar_mapa(self):
+        self.limpiar()
+
+        # Cabecera
+        cab = tk.Frame(self.contenedor, bg=C_ACENTO, pady=10)
+        cab.pack(fill="x")
+        tk.Label(cab,
+                 text=f"{self.avatar_jugador}  {self.nombre_jugador}  "
+                      f"•  Puntaje: {self.puntaje_jugador}",
+                 font=("Georgia", 13, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack()
+
+        tk.Label(self.contenedor, text="🗺  Mapa del Reino",
+                 font=("Georgia", 16, "bold"), fg=C_ACENTO,
+                 bg=C_FONDO).pack(pady=(14, 6))
+
+        panel = tk.Frame(self.contenedor, bg=C_PANEL,
+                         padx=24, pady=16,
+                         highlightthickness=1,
+                         highlightbackground=C_BORDE)
+        panel.pack(padx=50, pady=4, fill="both", expand=True)
+
+        tk.Label(panel, text="Tierras por liberar:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_PANEL).pack(anchor="w", pady=(0, 6))
+
+        for i, hueco in enumerate(self.HUECOS):
+            f = tk.Frame(panel, bg=C_PANEL)
+            f.pack(fill="x", pady=3)
+            if i < len(self.huecos_derrotados):
+                txt   = f"✅  {hueco['tierra']}"
+                color = C_VERDE
+                cmd   = None
+            elif i == self.hueco_index:
+                txt   = f"⚔   {hueco['tierra']}  ← ¡Disponible!"
+                color = C_ACENTO
+                cmd   = self.preparar_batalla
+            else:
+                txt   = f"🔒  {hueco['tierra']}"
+                color = C_SUAVE
+                cmd   = None
+
+            if cmd:
+                tk.Button(f, text=txt, command=cmd,
+                          font=F_NORMAL, bg=C_ACENTO, fg=C_BLANCO,
+                          relief="flat", padx=10, pady=6,
+                          cursor="hand2", anchor="w",
+                          activebackground=C_VERDE).pack(fill="x")
+            else:
+                tk.Label(f, text=txt, font=F_NORMAL,
+                         fg=color, bg=C_PANEL, anchor="w",
+                         padx=10).pack(fill="x")
+
+        # Equipo actual
+        self.separador(panel)
+        tk.Label(panel, text="Tu equipo:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_PANEL).pack(anchor="w")
+        for p in self.equipo_jugador:
+            estado = "💀 KO" if p["ko"] else f"❤ {p['vida']}/{p['vida_max']}"
+            color  = C_SUAVE if p["ko"] else C_TEXTO
+            tk.Label(panel,
+                     text=f"  {p['emoji']} {p['nombre']}  —  {estado}",
+                     font=F_CHICA, fg=color, bg=C_PANEL, anchor="w").pack(anchor="w")
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.4: PREPARACIÓN DE BATALLA
+    # --------------------------------------------------------
+
+    def preparar_batalla(self):
+        self.hueco_actual  = self.HUECOS[self.hueco_index]
+        self.puntaje_hueco = 0
+        disponibles = [p for p in self.todos_personajes
+                       if p["nombre"] not in [e["nombre"] for e in self.equipo_jugador]]
+        seleccion = random.sample(disponibles, min(3, len(disponibles)))
+        self.equipo_hueco             = [copiar_personaje(p) for p in seleccion]
+        self.personaje_jugador_activo = self.equipo_jugador[0]
+        self.personaje_hueco_activo   = self.equipo_hueco[0]
+        self.mostrar_batalla()
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.5: PANTALLA BATALLA
+    # --------------------------------------------------------
+
+    def mostrar_batalla(self):
+        self.limpiar()
+
+        # Cabecera con puntajes
+        cab = tk.Frame(self.contenedor, bg=C_ACENTO, pady=7)
+        cab.pack(fill="x")
+        tk.Label(cab,
+                 text=f"{self.avatar_jugador} {self.nombre_jugador}: {self.puntaje_jugador} pts",
+                 font=("Helvetica", 11, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack(side="left", padx=16)
+        tk.Label(cab,
+                 text=f"{self.hueco_actual['emoji']} {self.hueco_actual['nombre']}",
+                 font=("Helvetica", 11, "bold"), fg="#FFD6E7",
+                 bg=C_ACENTO).pack(side="left", padx=10)
+        tk.Label(cab,
+                 text=f"Hueca: {self.puntaje_hueco} pts",
+                 font=("Helvetica", 10), fg="#FFD6E7",
+                 bg=C_ACENTO).pack(side="right", padx=16)
+
+        # Arena central
+        arena = tk.Frame(self.contenedor, bg=C_FONDO)
+        arena.pack(fill="both", expand=True, padx=16, pady=8)
+
+        # Panel jugador
+        pj = self.personaje_jugador_activo
+        pan_j = tk.Frame(arena, bg=C_PANEL,
+                         padx=16, pady=12,
+                         highlightthickness=2,
+                         highlightbackground=C_VERDE)
+        pan_j.pack(side="left", fill="both", expand=True, padx=4)
+        tk.Label(pan_j, text="TU PRINCESA",
+                 font=("Helvetica", 8, "bold"), fg=C_VERDE,
+                 bg=C_PANEL).pack()
+        tk.Label(pan_j, text=pj["emoji"],
+                 font=("Helvetica", 42), bg=C_PANEL).pack()
+        tk.Label(pan_j, text=pj["nombre"],
+                 font=("Georgia", 12, "bold"), fg=C_TEXTO,
+                 bg=C_PANEL).pack()
+        tk.Label(pan_j, text=f"⚔ {pj['ataque']}   🛡 {pj['defensa']}",
+                 font=F_CHICA, fg=C_SUAVE, bg=C_PANEL).pack()
+        self.barra_vida(pan_j, pj["vida"], pj["vida_max"])
+
+        # VS
+        tk.Label(arena, text="VS",
+                 font=("Georgia", 18, "bold"), fg=C_ACENTO,
+                 bg=C_FONDO).pack(side="left", padx=4)
+
+        # Panel hueco
+        ph = self.personaje_hueco_activo
+        pan_h = tk.Frame(arena, bg=C_PANEL,
+                         padx=16, pady=12,
+                         highlightthickness=2,
+                         highlightbackground=C_ACENTO)
+        pan_h.pack(side="left", fill="both", expand=True, padx=4)
+        tk.Label(pan_h, text="ENEMIGA",
+                 font=("Helvetica", 8, "bold"), fg=C_ACENTO,
+                 bg=C_PANEL).pack()
+        tk.Label(pan_h, text=ph["emoji"],
+                 font=("Helvetica", 42), bg=C_PANEL).pack()
+        tk.Label(pan_h, text=ph["nombre"],
+                 font=("Georgia", 12, "bold"), fg=C_TEXTO,
+                 bg=C_PANEL).pack()
+        tk.Label(pan_h, text=f"⚔ {ph['ataque']}   🛡 {ph['defensa']}",
+                 font=F_CHICA, fg=C_SUAVE, bg=C_PANEL).pack()
+        self.barra_vida(pan_h, ph["vida"], ph["vida_max"])
+
+        # Log de batalla
+        frame_log = tk.Frame(self.contenedor, bg="#FFF0F5", pady=6,
+                             highlightthickness=1,
+                             highlightbackground=C_BORDE)
+        frame_log.pack(fill="x", padx=16)
+        self.label_log = tk.Label(frame_log, text="¿Qué hará tu princesa?",
+                                   font=("Helvetica", 10), fg=C_TEXTO,
+                                   bg="#FFF0F5", wraplength=740)
+        self.label_log.pack(pady=4)
+
+        # Botones de acción
+        frame_acc = tk.Frame(self.contenedor, bg=C_FONDO, pady=6)
+        frame_acc.pack()
+        self.btn(frame_acc, "⚔  ATACAR",    self.turno_jugador_ataque,
+                 bg=C_ACENTO, width=16, side="left")
+        self.btn(frame_acc, "🔄  CAMBIAR",   self.mostrar_cambio_personaje,
+                 bg=C_VERDE, width=16, side="left")
+
+        # Mini equipos
+        frame_eq = tk.Frame(self.contenedor, bg=C_FONDO)
+        frame_eq.pack(fill="x", padx=16, pady=4)
+
+        eq_j = tk.Frame(frame_eq, bg=C_PANEL2, padx=8, pady=4,
+                        highlightthickness=1, highlightbackground="#B8E8CC")
+        eq_j.pack(side="left", fill="both", expand=True, padx=3)
+        tk.Label(eq_j, text="Tu equipo:", font=("Helvetica", 8, "bold"),
+                 fg=C_VERDE, bg=C_PANEL2).pack(anchor="w")
+        for p in self.equipo_jugador:
+            c = C_SUAVE if p["ko"] else C_TEXTO
+            t = "💀 KO" if p["ko"] else f"❤{p['vida']}"
+            tk.Label(eq_j, text=f"{p['emoji']} {p['nombre']}: {t}",
+                     font=F_CHICA, fg=c, bg=C_PANEL2, anchor="w").pack(anchor="w")
+
+        eq_h = tk.Frame(frame_eq, bg=C_PANEL, padx=8, pady=4,
+                        highlightthickness=1, highlightbackground=C_BORDE)
+        eq_h.pack(side="right", fill="both", expand=True, padx=3)
+        tk.Label(eq_h, text="Equipo enemigo:", font=("Helvetica", 8, "bold"),
+                 fg=C_ACENTO, bg=C_PANEL).pack(anchor="w")
+        for p in self.equipo_hueco:
+            c = C_SUAVE if p["ko"] else C_TEXTO
+            t = "💀 KO" if p["ko"] else f"❤{p['vida']}"
+            tk.Label(eq_h, text=f"{p['emoji']} {p['nombre']}: {t}",
+                     font=F_CHICA, fg=c, bg=C_PANEL, anchor="w").pack(anchor="w")
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.6: LÓGICA DE TURNOS
+    # --------------------------------------------------------
+
+    def turno_jugador_ataque(self):
+        """Turno del jugador: ataca, luego el Hueco responde aleatoriamente."""
+        pj = self.personaje_jugador_activo
+        ph = self.personaje_hueco_activo
+
+        danio_j = calcular_danio(pj["ataque"], ph["defensa"])
+        ph["vida"] -= danio_j
+        log = f"⚔ {pj['nombre']} atacó a {ph['nombre']} causando {danio_j} de daño!"
+
+        if ph["vida"] <= 0:
+            ph["vida"] = 0
+            ph["ko"]   = True
+            log += f"\n✨ ¡{ph['nombre']} fue derrotada! La capturas."
+            self.puntaje_jugador += 1
+            self.equipo_jugador.append(restaurar_vida(copiar_personaje(ph)))
+            if todos_ko(self.equipo_hueco):
+                self.actualizar_log(log)
+                self.root.after(1000, self.victoria_batalla)
+                return
+            self.personaje_hueco_activo = siguiente_vivo(self.equipo_hueco)
+            log += f"\n🔄 La Hueca envía a {self.personaje_hueco_activo['nombre']}!"
+            self.actualizar_log(log)
+            self.root.after(900, self.mostrar_batalla)
+            return
+
+        log += self.turno_hueco()
+        self.actualizar_log(log)
+        self.root.after(700, self.mostrar_batalla)
+
+    def turno_hueco(self):
+        """
+        El Hueco actúa de forma completamente aleatoria:
+        70% atacar, 30% cambiar de personaje.
+        """
+        pj = self.personaje_jugador_activo
+        ph = self.personaje_hueco_activo
+        vivos = obtener_personajes_vivos(self.equipo_hueco)
+        accion = random.choices(["atacar", "cambiar"], weights=[70, 30])[0]
+
+        if accion == "cambiar" and len(vivos) > 1:
+            opciones = [p for p in vivos if p["nombre"] != ph["nombre"]]
+            if opciones:
+                self.personaje_hueco_activo = random.choice(opciones)
+                return f"\n🔄 La Hueca cambia a {self.personaje_hueco_activo['nombre']}!"
+
+        danio_h = calcular_danio(ph["ataque"], pj["defensa"])
+        pj["vida"] -= danio_h
+        log = f"\n💜 {ph['nombre']} atacó a {pj['nombre']} causando {danio_h} de daño!"
+
+        if pj["vida"] <= 0:
+            pj["vida"] = 0
+            pj["ko"]   = True
+            log += f"\n💀 ¡{pj['nombre']} fue derrotada! La Hueca la captura."
+            self.puntaje_hueco += 1
+            self.equipo_hueco.append(restaurar_vida(copiar_personaje(pj)))
+            if todos_ko(self.equipo_jugador):
+                self.actualizar_log(log)
+                self.root.after(1000, self.derrota_batalla)
+                return ""
+            self.personaje_jugador_activo = siguiente_vivo(self.equipo_jugador)
+            log += f"\n➡  Envías a {self.personaje_jugador_activo['nombre']}!"
+        return log
+
+    def actualizar_log(self, texto):
+        try:
+            self.label_log.config(text=texto)
+            self.label_log.update()
+        except Exception:
+            pass
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.7: CAMBIO DE PERSONAJE
+    # --------------------------------------------------------
+
+    def mostrar_cambio_personaje(self):
+        vivos = [p for p in self.equipo_jugador
+                 if not p["ko"] and
+                 p["nombre"] != self.personaje_jugador_activo["nombre"]]
+        if not vivos:
+            messagebox.showinfo("Sin opciones", "No tienes otras princesas disponibles.")
+            return
+
+        v = tk.Toplevel(self.root)
+        v.title("Cambiar princesa")
+        v.configure(bg=C_FONDO)
+        v.geometry("340x260")
+        v.resizable(False, False)
+
+        tk.Label(v, text="Elige tu nueva princesa:",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_FONDO).pack(pady=14)
+
+        def seleccionar(p):
+            self.personaje_jugador_activo = p
+            v.destroy()
+            self.mostrar_batalla()
+
+        for p in vivos:
+            txt = f"{p['emoji']} {p['nombre']}  ❤ {p['vida']}/{p['vida_max']}"
+            tk.Button(v, text=txt, font=F_NORMAL,
+                      command=lambda x=p: seleccionar(x),
+                      bg=C_PANEL, fg=C_TEXTO, relief="flat",
+                      padx=8, pady=7, cursor="hand2",
+                      activebackground=C_ACENTO,
+                      activeforeground=C_BLANCO,
+                      highlightthickness=1,
+                      highlightbackground=C_BORDE
+                      ).pack(fill="x", padx=20, pady=4)
+
+    # --------------------------------------------------------
+    # SECCIÓN 4.8: RESULTADO DE BATALLA
+    # --------------------------------------------------------
+
+    def victoria_batalla(self):
+        self.limpiar()
+        cab = tk.Frame(self.contenedor, bg=C_VERDE, pady=14)
+        cab.pack(fill="x")
+        tk.Label(cab, text="🎉  ¡VICTORIA!",
+                 font=("Georgia", 26, "bold"), fg=C_BLANCO,
+                 bg=C_VERDE).pack()
+
+        tk.Label(self.contenedor,
+                 text=f"¡Derrotaste a la {self.hueco_actual['nombre']}!",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_FONDO).pack(pady=14)
+        tk.Label(self.contenedor,
+                 text=f"Puntaje acumulado: {self.puntaje_jugador}",
+                 font=("Georgia", 14), fg=C_ACENTO, bg=C_FONDO).pack()
+
+        self.huecos_derrotados.append(self.hueco_actual)
+        self.hueco_index += 1
+
+        if self.hueco_index >= len(self.HUECOS):
+            self.root.after(1200, self.fin_juego_victoria)
+        else:
+            self.btn(self.contenedor, "🗺  Ir al Mapa", self.mostrar_mapa, pady=20)
+
+    def derrota_batalla(self):
+        self.limpiar()
+        cab = tk.Frame(self.contenedor, bg=C_ACENTO, pady=14)
+        cab.pack(fill="x")
+        tk.Label(cab, text="💀  DERROTA",
+                 font=("Georgia", 26, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack()
+
+        tk.Label(self.contenedor,
+                 text=f"La {self.hueco_actual['nombre']} te venció.",
+                 font=F_GRANDE, fg=C_TEXTO, bg=C_FONDO).pack(pady=14)
+        tk.Label(self.contenedor,
+                 text="¡Las historias están en peligro!",
+                 font=F_NORMAL, fg=C_SUAVE, bg=C_FONDO).pack()
+        self.btn(self.contenedor, "🔄  Volver al Inicio",
+                 self.reiniciar_juego, pady=20)
+
+    def fin_juego_victoria(self):
+        self.limpiar()
+        cab = tk.Frame(self.contenedor, bg=C_ACENTO, pady=18)
+        cab.pack(fill="x")
+        tk.Label(cab, text="👑  ¡ERES LA GUARDIANA!",
+                 font=("Georgia", 22, "bold"), fg=C_BLANCO,
+                 bg=C_ACENTO).pack()
+
+        tk.Label(self.contenedor,
+                 text="Derrotaste a todas las Huecas.\n¡Las historias están a salvo! ✨",
+                 font=("Georgia", 14), fg=C_TEXTO,
+                 bg=C_FONDO, justify="center").pack(pady=20)
+        tk.Label(self.contenedor,
+                 text=f"Puntaje final: {self.puntaje_jugador}",
+                 font=("Georgia", 20, "bold"), fg=C_VERDE,
+                 bg=C_FONDO).pack()
+        self.btn(self.contenedor, "🔄  Jugar de Nuevo",
+                 self.reiniciar_juego, pady=24)
+
+    def reiniciar_juego(self):
+        self.todos_personajes = cargar_personajes()
+        self.mostrar_pantalla_inicio()
+
+
+# ============================================================
+# SECCIÓN 5: PUNTO DE ENTRADA
+# ============================================================
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app  = EpicAdventureApp(root)
+    root.mainloop()
