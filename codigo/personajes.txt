@@ -1,0 +1,15 @@
+MULAN,Mulan,Ataque,55,28,8,assets/mulan.png
+MOANA,Moana,Balanceado,60,22,12,assets/moana.png
+ELSA,Frozen,Ataque,50,32,7,assets/elsa.png
+RAPUNZEL,Enredados,Balanceado,62,20,13,assets/rapunzel.png
+MERIDA,Valiente,Ataque,52,30,9,assets/merida.png
+POCAHONTAS,Pocahontas,Balanceado,60,20,14,assets/pocahontas.png
+CENICIENTA,La Cenicienta,Defensa,75,14,18,assets/cenicienta.png
+BELLA,La Bella y la Bestia,Balanceado,58,22,10,assets/bella.png
+ARIEL,La Sirenita,Ataque,50,31,6,assets/ariel.png
+TIANA,La Princesa y el Sapo,Balanceado,62,21,12,assets/tiana.png
+AURORA,La Bella Durmiente,Defensa,70,15,17,assets/aurora.png
+JASMINE,Aladdin,Ataque,53,29,8,assets/jasmine.png
+MIRABEL,Encanto,Balanceado,60,20,15,assets/mirabel.png
+RAYA,Raya y el Último Dragón,Ataque,55,33,6,assets/raya.png
+VAIANA,Vaiana,Balanceado,58,21,11,assets/vaiana.png
